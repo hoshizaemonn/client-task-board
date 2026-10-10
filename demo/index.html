@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>クライアント タスク盤（デモ・サンプル値）</title>
+<meta name="description" content="クライアント別のタスク・ボール・次アクション・期限を1画面で管理する個人用ボード。データはこのブラウザにだけ保存される。">
+<style>
+:root{
+  --bg:#f4f5f7;--card:#ffffff;--text:#1b1f24;--muted:#6b7280;--line:#e3e6ea;
+  --accent:#2563eb;--accent-soft:#dbeafe;
+  --red:#dc2626;--red-soft:#fee2e2;--amber:#d97706;--amber-soft:#fef3c7;
+  --green:#16a34a;--green-soft:#dcfce7;--gray-soft:#eef0f3;
+  --ball-me:#2563eb;--ball-them:#9333ea;--ball-suzuki:#d97706;
+  --radius:10px;--shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115;--card:#171a21;--text:#e6e8ec;--muted:#9aa3b2;--line:#262b35;
+    --accent:#60a5fa;--accent-soft:#1e3a5f;
+    --red:#f87171;--red-soft:#4a1d1d;--amber:#fbbf24;--amber-soft:#4a3410;
+    --green:#4ade80;--green-soft:#143d22;--gray-soft:#20242d;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115;--card:#171a21;--text:#e6e8ec;--muted:#9aa3b2;--line:#262b35;
+  --accent:#60a5fa;--accent-soft:#1e3a5f;
+  --red:#f87171;--red-soft:#4a1d1d;--amber:#fbbf24;--amber-soft:#4a3410;
+  --green:#4ade80;--green-soft:#143d22;--gray-soft:#20242d;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;padding:0 16px 80px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:18px 0 10px}
+header h1{font-size:20px;margin:0;flex:1 1 auto}
+header .sub{font-size:12px;color:var(--muted);width:100%}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;font-size:14px;box-shadow:var(--shadow)}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--red)}
+.btn.small{padding:3px 8px;font-size:12px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:8px 0 14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow);cursor:pointer}
+.tile.active{outline:2px solid var(--accent)}
+.tile .n{font-size:24px;font-weight:700;line-height:1.1}
+.tile .l{font-size:12px;color:var(--muted)}
+.tile.red .n{color:var(--red)}.tile.amber .n{color:var(--amber)}.tile.purple .n{color:var(--ball-them)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.toolbar input[type=search],.toolbar select{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px;font-size:14px}
+.toolbar input[type=search]{flex:1 1 180px;min-width:0}
+.tabs{display:flex;gap:4px;background:var(--gray-soft);padding:3px;border-radius:9px}
+.tabs button{border:0;background:transparent;border-radius:7px;padding:5px 11px;font-size:13px;color:var(--muted)}
+.tabs button.on{background:var(--card);color:var(--text);box-shadow:var(--shadow)}
+.quick{display:grid;grid-template-columns:minmax(120px,1fr) minmax(200px,3fr) auto auto auto;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:14px;box-shadow:var(--shadow)}
+.quick input,.quick select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;font-size:14px;min-width:0}
+@media (max-width:700px){.quick{grid-template-columns:1fr 1fr}.quick input[name=title]{grid-column:1/-1}}
+.group{margin-bottom:18px}
+.group h2{font-size:14px;color:var(--muted);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.group h2 .cnt{font-weight:400;font-size:12px}
+.task{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;box-shadow:var(--shadow)}
+.task.done{opacity:.55}
+.task .chk{width:20px;height:20px;margin-top:3px;accent-color:var(--green)}
+.task .t{font-weight:600;cursor:pointer}
+.task.done .t{text-decoration:line-through}
+.task .meta{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--muted);margin-top:3px}
+.task .next{font-size:13px;margin-top:2px}
+.task .next:before{content:"→ ";color:var(--muted)}
+.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;background:var(--gray-soft);color:var(--text)}
+.chip.client{background:var(--accent-soft)}
+.chip.me{background:var(--accent);color:#fff}.chip.them{background:var(--ball-them);color:#fff}.chip.suzuki{background:var(--ball-suzuki);color:#fff}
+.chip.over{background:var(--red-soft);color:var(--red);font-weight:600}
+.chip.today{background:var(--amber-soft);color:var(--amber);font-weight:600}
+.chip.soon{background:var(--amber-soft);color:var(--amber)}
+.chip.stale{background:var(--red-soft);color:var(--red)}
+.task .ops{display:flex;gap:4px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);padding:0;width:min(560px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog form{padding:18px}
+dialog h3{margin:0 0 12px;font-size:16px}
+.f{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.f label{font-size:12px;color:var(--muted)}
+.f input,.f select,.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;font-size:14px}
+.f textarea{min-height:80px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.row{grid-template-columns:1fr}}
+.actions{display:flex;justify-content:space-between;gap:8px;margin-top:8px}
+.actions .r{display:flex;gap:8px}
+.clients-list{list-style:none;margin:0;padding:0}
+.clients-list li{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.clients-list li span{flex:1}
+.foot{font-size:12px;color:var(--muted);margin-top:30px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+/* 日次タブ */
+.daily-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.daily-head select{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px;font-size:14px}
+.daily-head .upd{font-size:12px;color:var(--muted)}
+.alerts{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.alert{border-radius:8px;padding:8px 12px;font-size:13px;border:1px solid var(--line);background:var(--card)}
+.alert.red{background:var(--red-soft);color:var(--red);border-color:transparent}
+.alert.yellow{background:var(--amber-soft);color:var(--amber);border-color:transparent}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow)}
+.kpi .l{font-size:11px;color:var(--muted)}
+.kpi .n{font-size:20px;font-weight:700;line-height:1.2}
+.kpi .d{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.meta{border-top:3px solid #1877f2}.kpi.yahoo{border-top:3px solid #ff0033}.kpi.amazon{border-top:3px solid #ff9900}.kpi.total{border-top:3px solid var(--accent)}
+.tblwrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:14px}
+table.daily{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}
+table.daily th,table.daily td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+table.daily th:first-child,table.daily td:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+table.daily thead th{color:var(--muted);font-weight:600;background:var(--gray-soft)}
+table.daily tr.yesterday td{background:var(--accent-soft)}
+table.daily td.zero{color:var(--muted)}
+table.daily td.buy{color:var(--green);font-weight:700}
+.links{display:flex;flex-wrap:wrap;gap:6px;font-size:12px;margin-bottom:10px}
+.links a{border:1px solid var(--line);border-radius:999px;padding:2px 10px;text-decoration:none;background:var(--card)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>クライアント タスク盤</h1>
+  <button class="btn" id="btnClients">クライアント管理</button>
+  <button class="btn" id="btnExport">書き出し</button>
+  <button class="btn" id="btnImport">読み込み</button>
+  <input type="file" id="fileImport" accept="application/json" hidden>
+  <div class="sub" id="saveInfo"></div>
+</header>
+
+<div class="summary" id="summary"></div>
+
+<form class="quick" id="quick" autocomplete="off">
+  <select name="client" required><option value="">クライアント</option></select>
+  <input name="title" placeholder="タスク（Enterで追加）" required>
+  <select name="ball">
+    <option value="me">自分</option>
+    <option value="them">相手待ち</option>
+    <option value="suzuki">鈴木さん</option>
+  </select>
+  <input name="due" type="date" title="期限">
+  <button class="btn primary" type="submit">追加</button>
+</form>
+
+<div class="toolbar">
+  <input type="search" id="q" placeholder="検索（タスク・次アクション・メモ）">
+  <select id="fClient"><option value="">全クライアント</option></select>
+  <div class="tabs" id="view">
+    <button data-v="due" class="on">期限順</button>
+    <button data-v="client">クライアント別</button>
+    <button data-v="ball">ボール別</button>
+    <button data-v="daily" id="tabDaily" hidden>📈 日次</button>
+  </div>
+  <label style="font-size:13px;color:var(--muted)"><input type="checkbox" id="showDone"> 完了も表示</label>
+</div>
+
+<div id="list"></div>
+
+<p class="foot">データはこのブラウザの localStorage にだけ保存されます。別端末・別ブラウザには同期されません。週1回「書き出し」でJSONを退避してください。</p>
+</div>
+
+<dialog id="dlgTask">
+<form method="dialog" id="formTask">
+  <h3 id="dlgTitle">タスク編集</h3>
+  <input type="hidden" name="id">
+  <div class="row">
+    <div class="f"><label>クライアント</label><select name="client" required></select></div>
+    <div class="f"><label>ボール（誰が持っているか）</label>
+      <select name="ball"><option value="me">自分</option><option value="them">相手待ち</option><option value="suzuki">鈴木さん</option></select></div>
+  </div>
+  <div class="f"><label>タスク</label><input name="title" required></div>
+  <div class="f"><label>次アクション（次にやる1手）</label><input name="next" placeholder="例: 修正版をChatWorkで送る"></div>
+  <div class="row">
+    <div class="f"><label>期限</label><input name="due" type="date"></div>
+    <div class="f"><label>状態</label><select name="status"><option value="todo">未着手</option><option value="doing">進行中</option><option value="done">完了</option></select></div>
+  </div>
+  <div class="f"><label>メモ</label><textarea name="memo"></textarea></div>
+  <div class="actions">
+    <button type="button" class="btn danger" id="btnDelete">削除</button>
+    <div class="r"><button type="button" class="btn" id="btnCancel">キャンセル</button><button class="btn primary" type="submit">保存</button></div>
+  </div>
+</form>
+</dialog>
+
+<dialog id="dlgClients">
+<form method="dialog">
+  <h3>クライアント管理</h3>
+  <ul class="clients-list" id="clientsList"></ul>
+  <div class="f" style="margin-top:10px"><label>追加</label>
+    <div style="display:flex;gap:6px"><input id="newClient" placeholder="クライアント名" style="flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px"><button type="button" class="btn" id="addClient">追加</button></div></div>
+  <div class="actions"><span></span><div class="r"><button class="btn primary">閉じる</button></div></div>
+</form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="vendor/chart.umd.min.js"></script>
+<script src="daily.js"></script>
+<script>
+(function(){
+const KEY='hishaku_task_board_demo';
+const BALL={me:'自分',them:'相手待ち',suzuki:'鈴木さん'};
+const STATUS={todo:'未着手',doing:'進行中',done:'完了'};
+const STALE_DAYS=3;
+
+let state={clients:[],tasks:[],updatedAt:null};
+let ui={view:'due',q:'',client:'',showDone:false,tile:''};
+let storageOK=true;
+
+function load(){
+  try{const raw=localStorage.getItem(KEY);if(raw){const d=JSON.parse(raw);if(d&&Array.isArray(d.tasks))state=Object.assign(state,d);}}
+  catch(e){storageOK=false;}
+}
+function save(){
+  state.updatedAt=new Date().toISOString();
+  try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true;}
+  catch(e){storageOK=false;}
+  renderSaveInfo();
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function localDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function todayStr(){return localDateStr(new Date());}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtDate(s){if(!s)return '';const [y,m,d]=s.split('-');const w='日月火水木金土'[new Date(s+'T00:00:00').getDay()];return `${Number(m)}/${Number(d)}(${w})`;}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+
+function dueClass(t){
+  if(t.status==='done'||!t.due)return '';
+  const n=daysBetween(todayStr(),t.due);
+  if(n<0)return 'over';if(n===0)return 'today';if(n<=3)return 'soon';return '';
+}
+function dueLabel(t){
+  if(!t.due)return '';
+  const n=daysBetween(todayStr(),t.due);
+  if(t.status==='done')return fmtDate(t.due);
+  if(n<0)return `${fmtDate(t.due)} ${-n}日超過`;
+  if(n===0)return `${fmtDate(t.due)} 今日`;
+  if(n<=3)return `${fmtDate(t.due)} あと${n}日`;
+  return fmtDate(t.due);
+}
+function staleDays(t){
+  if(t.ball!=='them'||t.status==='done')return 0;
+  const d=daysBetween(localDateStr(new Date(t.ballSince||t.createdAt)),todayStr());
+  return d>=STALE_DAYS?d:0;
+}
+function clientName(id){const c=state.clients.find(c=>c.id===id);return c?c.name:'(未設定)';}
+
+function visibleTasks(){
+  const q=ui.q.trim().toLowerCase();
+  let ts=state.tasks.filter(t=>{
+    if(!ui.showDone&&t.status==='done')return false;
+    if(ui.client&&t.client!==ui.client)return false;
+    if(q&&!(t.title+' '+(t.next||'')+' '+(t.memo||'')+' '+clientName(t.client)).toLowerCase().includes(q))return false;
+    if(ui.tile==='over'&&dueClass(t)!=='over')return false;
+    if(ui.tile==='today'&&dueClass(t)!=='today')return false;
+    if(ui.tile==='soon'&&!['today','soon','over'].includes(dueClass(t)))return false;
+    if(ui.tile==='stale'&&!staleDays(t))return false;
+    if(ui.tile==='me'&&!(t.ball==='me'&&t.status!=='done'))return false;
+    if(ui.tile==='suzuki'&&!(t.ball==='suzuki'&&t.status!=='done'))return false;
+    return true;
+  });
+  return ts;
+}
+function sortByDue(a,b){
+  if((a.status==='done')!==(b.status==='done'))return a.status==='done'?1:-1;
+  if(!!a.due!==!!b.due)return a.due?-1:1;
+  if(a.due!==b.due)return a.due<b.due?-1:1;
+  return a.createdAt<b.createdAt?-1:1;
+}
+
+function renderSummary(){
+  const open=state.tasks.filter(t=>t.status!=='done');
+  const c={
+    over:open.filter(t=>dueClass(t)==='over').length,
+    today:open.filter(t=>dueClass(t)==='today').length,
+    soon:open.filter(t=>['today','soon'].includes(dueClass(t))).length,
+    stale:open.filter(staleDays).length,
+    me:open.filter(t=>t.ball==='me').length,
+    suzuki:open.filter(t=>t.ball==='suzuki').length,
+  };
+  const tiles=[
+    ['over','期限超過','red'],['today','今日まで','amber'],['soon','3日以内','amber'],
+    ['stale',`相手待ち${STALE_DAYS}日+`,'purple'],['me','自分ボール',''],['suzuki','鈴木さん確認待ち','']
+  ];
+  document.getElementById('summary').innerHTML=tiles.map(([k,l,cls])=>
+    `<div class="tile ${cls} ${ui.tile===k?'active':''}" data-tile="${k}"><div class="n">${c[k]}</div><div class="l">${l}</div></div>`).join('');
+}
+function taskHTML(t){
+  const dc=dueClass(t);const st=staleDays(t);
+  return `<div class="task ${t.status==='done'?'done':''}" data-id="${t.id}">
+    <input type="checkbox" class="chk" ${t.status==='done'?'checked':''} title="完了">
+    <div>
+      <div class="t">${esc(t.title)}</div>
+      ${t.next?`<div class="next">${esc(t.next)}</div>`:''}
+      <div class="meta">
+        <span class="chip client">${esc(clientName(t.client))}</span>
+        <span class="chip ${t.ball}">${BALL[t.ball]||''}</span>
+        ${t.due?`<span class="chip ${dc}">${dueLabel(t)}</span>`:''}
+        ${st?`<span class="chip stale">返事待ち${st}日</span>`:''}
+        ${t.status==='doing'?`<span class="chip">進行中</span>`:''}
+      </div>
+    </div>
+    <div class="ops"><button class="btn small edit" type="button">編集</button></div>
+  </div>`;
+}
+function renderList(){
+  if(ui.view==='daily'){renderDaily();return;}
+  const ts=visibleTasks();
+  const el=document.getElementById('list');
+  if(!ts.length){el.innerHTML=`<div class="empty">${state.tasks.length?'該当するタスクはありません':'まだタスクがありません。上の欄から追加してください'}</div>`;return;}
+  let groups=[];
+  if(ui.view==='due'){
+    const g={over:[],today:[],soon:[],later:[],none:[],done:[]};
+    ts.forEach(t=>{if(t.status==='done')g.done.push(t);else if(!t.due)g.none.push(t);else g[dueClass(t)||'later'].push(t);});
+    groups=[['🔴 期限超過',g.over],['🟡 今日',g.today],['🟡 3日以内',g.soon],['今後',g.later],['期限なし',g.none],['完了',g.done]];
+  }else if(ui.view==='client'){
+    state.clients.forEach(c=>groups.push([c.name,ts.filter(t=>t.client===c.id)]));
+    const orphan=ts.filter(t=>!state.clients.some(c=>c.id===t.client));if(orphan.length)groups.push(['(未設定)',orphan]);
+  }else{
+    ['me','suzuki','them'].forEach(b=>groups.push([BALL[b],ts.filter(t=>t.ball===b)]));
+  }
+  el.innerHTML=groups.filter(([,a])=>a.length).map(([name,a])=>
+    `<div class="group"><h2>${esc(name)}<span class="cnt">${a.length}件</span></h2>${a.sort(sortByDue).map(taskHTML).join('')}</div>`).join('');
+}
+function renderClientSelects(){
+  const opts=state.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.querySelector('#quick [name=client]').innerHTML='<option value="">クライアント</option>'+opts;
+  document.querySelector('#formTask [name=client]').innerHTML=opts;
+  const f=document.getElementById('fClient');const cur=f.value;f.innerHTML='<option value="">全クライアント</option>'+opts;f.value=cur;
+  document.getElementById('clientsList').innerHTML=state.clients.map(c=>{
+    const n=state.tasks.filter(t=>t.client===c.id&&t.status!=='done').length;
+    return `<li data-id="${c.id}"><span>${esc(c.name)} <small style="color:var(--muted)">${n}件</small></span>
+      <button type="button" class="btn small ren">名前変更</button><button type="button" class="btn small danger del">削除</button></li>`;}).join('')||'<li style="color:var(--muted)">まだありません</li>';
+}
+function renderSaveInfo(){
+  const el=document.getElementById('saveInfo');
+  if(!storageOK){el.innerHTML='<span style="color:var(--red)">⚠ このブラウザでは保存できません（プライベートモード等）。閉じると消えます。「書き出し」で退避してください。</span>';return;}
+  el.textContent=state.updatedAt?`最終保存 ${new Date(state.updatedAt).toLocaleString('ja-JP')} ／ 未完了 ${state.tasks.filter(t=>t.status!=='done').length}件`:'';
+}
+function render(){renderSummary();renderClientSelects();renderList();renderSaveInfo();}
+
+// ---- quick add
+document.getElementById('quick').addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target;
+  if(!f.client.value){openClients();toast('先にクライアントを追加してください');return;}
+  const now=new Date().toISOString();
+  state.tasks.push({id:uid(),client:f.client.value,title:f.title.value.trim(),ball:f.ball.value,ballSince:now,next:'',due:f.due.value||'',status:'todo',memo:'',createdAt:now,doneAt:null});
+  save();f.title.value='';f.due.value='';f.title.focus();render();
+});
+
+// ---- list interactions
+document.getElementById('list').addEventListener('click',e=>{
+  const row=e.target.closest('.task');if(!row)return;
+  const t=state.tasks.find(x=>x.id===row.dataset.id);if(!t)return;
+  if(e.target.classList.contains('chk')){
+    t.status=e.target.checked?'done':'todo';t.doneAt=e.target.checked?new Date().toISOString():null;save();render();return;
+  }
+  if(e.target.classList.contains('edit')||e.target.classList.contains('t'))openTask(t);
+});
+document.getElementById('summary').addEventListener('click',e=>{
+  const tile=e.target.closest('.tile');if(!tile)return;
+  ui.tile=ui.tile===tile.dataset.tile?'':tile.dataset.tile;render();
+});
+document.getElementById('q').addEventListener('input',e=>{ui.q=e.target.value;renderList();});
+document.getElementById('fClient').addEventListener('change',e=>{ui.client=e.target.value;renderList();});
+document.getElementById('showDone').addEventListener('change',e=>{ui.showDone=e.target.checked;renderList();});
+document.getElementById('view').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  ui.view=b.dataset.v;document.querySelectorAll('#view button').forEach(x=>x.classList.toggle('on',x===b));
+  try{localStorage.setItem(KEY+'_view',ui.view);}catch(_){}
+  renderList();
+});
+
+// ---- 日次タブ（data/index.json があるときだけ出る＝ローカルサーバー専用。公開Pagesには出ない）
+// 描画本体は daily.js（DailyDash）。ここはデータ読込と「日次確認」タスクの自動作成だけ
+const daily={index:null,data:{},client:''};
+async function loadDailyIndex(){
+  try{
+    const r=await fetch('data/index.json',{cache:'no-store'});if(!r.ok)return;
+    daily.index=await r.json();
+    if(!daily.index.clients||!daily.index.clients.length)return;
+    document.getElementById('tabDaily').hidden=false;
+    daily.client=daily.index.clients[0].id;
+    await loadDailyClient(daily.client);
+    autoDailyTask();
+    if(ui.view==='daily')renderList();
+  }catch(_){}
+}
+async function loadDailyClient(id){
+  const c=daily.index.clients.find(x=>x.id===id);if(!c)return;
+  const r=await fetch('data/'+c.file,{cache:'no-store'});if(r.ok)daily.data[id]=await r.json();
+}
+function autoDailyTask(){
+  const d=daily.data[daily.client];if(!d)return;
+  const today=todayStr();
+  const title=`${d.client} 日次確認 ${Number(today.slice(5,7))}/${Number(today.slice(8,10))}`;
+  if(state.tasks.some(t=>t.title===title))return;
+  const cid=state.clients.find(c=>c.id===d.client_id||c.name===d.client);if(!cid)return;
+  const red=(d.alerts||[]).filter(a=>a.level==='red').map(a=>a.text);
+  const now=new Date().toISOString();
+  state.tasks.push({id:uid(),client:cid.id,title,ball:'me',ballSince:now,next:red[0]?('🔴 '+red[0]):'日次タブで昨日の数字とアラートを見る',
+    due:today,status:'todo',memo:`自動作成（日次タブ）／最新データ ${d.latest_date}`,createdAt:now,doneAt:null});
+  save();render();
+}
+function renderDaily(){
+  const el=document.getElementById('list');
+  const d=daily.data[daily.client];
+  if(!d){el.innerHTML='<div class="empty">日次データを読み込めません（data/ が無い、またはローカルサーバー外）</div>';return;}
+  if(!window.DailyDash){el.innerHTML='<div class="empty">daily.js を読み込めません</div>';return;}
+  window.DailyDash.render(el,d,{
+    clients:daily.index.clients,current:daily.client,esc,fmtDate,todayStr,
+    onClient:async id=>{daily.client=id;await loadDailyClient(id);renderDaily();}
+  });
+}
+
+// ---- task dialog
+const dlg=document.getElementById('dlgTask'),form=document.getElementById('formTask');
+function openTask(t){
+  form.id.value=t.id;form.client.value=t.client;form.ball.value=t.ball;form.title.value=t.title;
+  form.next.value=t.next||'';form.due.value=t.due||'';form.status.value=t.status;form.memo.value=t.memo||'';
+  dlg.showModal();
+}
+form.addEventListener('submit',e=>{
+  const t=state.tasks.find(x=>x.id===form.id.value);if(!t)return;
+  if(t.ball!==form.ball.value)t.ballSince=new Date().toISOString();
+  t.client=form.client.value;t.ball=form.ball.value;t.title=form.title.value.trim();t.next=form.next.value.trim();
+  t.due=form.due.value;const wasDone=t.status==='done';t.status=form.status.value;
+  if(t.status==='done'&&!wasDone)t.doneAt=new Date().toISOString();if(t.status!=='done')t.doneAt=null;
+  t.memo=form.memo.value;save();render();
+});
+document.getElementById('btnCancel').addEventListener('click',()=>dlg.close());
+document.getElementById('btnDelete').addEventListener('click',()=>{
+  const t=state.tasks.find(x=>x.id===form.id.value);if(!t)return;
+  if(!confirm(`「${t.title}」を削除しますか？`))return;
+  state.tasks=state.tasks.filter(x=>x!==t);save();dlg.close();render();
+});
+
+// ---- clients dialog
+const dlgC=document.getElementById('dlgClients');
+function openClients(){renderClientSelects();dlgC.showModal();document.getElementById('newClient').focus();}
+document.getElementById('btnClients').addEventListener('click',openClients);
+function addClient(){
+  const inp=document.getElementById('newClient');const name=inp.value.trim();if(!name)return;
+  if(state.clients.some(c=>c.name===name)){toast('同名のクライアントがあります');return;}
+  state.clients.push({id:uid(),name});save();inp.value='';render();
+}
+document.getElementById('addClient').addEventListener('click',addClient);
+document.getElementById('newClient').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addClient();}});
+document.getElementById('clientsList').addEventListener('click',e=>{
+  const li=e.target.closest('li');if(!li)return;const c=state.clients.find(x=>x.id===li.dataset.id);if(!c)return;
+  if(e.target.classList.contains('ren')){const n=prompt('新しい名前',c.name);if(n&&n.trim()){c.name=n.trim();save();render();}}
+  if(e.target.classList.contains('del')){
+    const n=state.tasks.filter(t=>t.client===c.id).length;
+    if(!confirm(`「${c.name}」を削除しますか？${n?`（タスク${n}件も削除されます）`:''}`))return;
+    state.tasks=state.tasks.filter(t=>t.client!==c.id);state.clients=state.clients.filter(x=>x!==c);save();render();
+  }
+});
+
+// ---- export / import
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`task-board-${todayStr()}.json`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('書き出しました');
+});
+document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('fileImport').click());
+document.getElementById('fileImport').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let d;try{d=JSON.parse(r.result);}catch(_){toast('JSONとして読めません');return;}
+    if(!d||!Array.isArray(d.clients)||!Array.isArray(d.tasks)){toast('形式が違います（clients / tasks が必要）');return;}
+    const mode=state.tasks.length||state.clients.length
+      ?(confirm('現在のデータに「追加（マージ）」しますか？\nOK=マージ ／ キャンセル=置き換え')?'merge':'replace')
+      :'replace';
+    if(mode==='replace'){state={clients:d.clients,tasks:d.tasks,updatedAt:null};}
+    else{
+      const nameToId={};state.clients.forEach(c=>nameToId[c.name]=c.id);
+      const idMap={};
+      d.clients.forEach(c=>{if(nameToId[c.name]){idMap[c.id]=nameToId[c.name];}else{const id=uid();idMap[c.id]=id;state.clients.push({id,name:c.name});}});
+      const have=new Set(state.tasks.map(t=>t.id));
+      d.tasks.forEach(t=>{if(have.has(t.id))return;t.client=idMap[t.client]||t.client;state.tasks.push(t);});
+    }
+    // normalize
+    state.tasks.forEach(t=>{t.createdAt=t.createdAt||new Date().toISOString();t.ballSince=t.ballSince||t.createdAt;t.status=STATUS[t.status]?t.status:'todo';t.ball=BALL[t.ball]?t.ball:'me';});
+    save();render();toast(mode==='merge'?'マージしました':'置き換えました');
+  };
+  r.readAsText(file);e.target.value='';
+});
+
+load();
+// ローカル盤で空っぽなら data/seed_tasks.json を自動投入（公開Pagesには無いので何も起きない）
+async function autoSeed(){
+  if(state.tasks.length||state.clients.length)return;
+  try{const r=await fetch('data/seed_tasks.json',{cache:'no-store'});if(!r.ok)return;
+    const d=await r.json();if(!Array.isArray(d.clients)||!Array.isArray(d.tasks))return;
+    state={clients:d.clients,tasks:d.tasks,updatedAt:null};
+    state.tasks.forEach(t=>{t.createdAt=t.createdAt||new Date().toISOString();t.ballSince=t.ballSince||t.createdAt;});
+    save();render();toast(`初期データを読み込みました（${d.tasks.length}件）`);}catch(_){}
+}
+autoSeed();
+try{const v=localStorage.getItem(KEY+'_view');if(v&&v!=='daily'){ui.view=v;document.querySelectorAll('#view button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));}}catch(_){}
+render();
+loadDailyIndex();
+})();
+</script>
+</body>
+</html>
